@@ -13,33 +13,37 @@
         .container { padding: 20px; }
         .card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         h2 { margin-top: 0; font-size: 1.2em; color: #8e8e93; font-weight: 500;}
+        h3 { font-size: 1em; color: white; margin-bottom: 10px; margin-top: 20px;}
         
-        /* Notification Banner */
         #notification-area { position: sticky; top: 0; z-index: 200; }
         .alert-banner { background: var(--danger); color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 10px rgba(0,0,0,0.5); display: flex; justify-content: space-between; align-items: center;}
         .alert-btn { background: white; color: var(--danger); border: none; padding: 5px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; width: auto; margin:0;}
 
         /* Envelopes Grid */
-        .envelope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .envelope { background: #2c2c2e; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;}
+        .envelope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .envelope { background: #2c2c2e; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-top: 4px solid var(--accent);}
+        .savings-env { border-top: 4px solid var(--purple); }
         .env-title { font-size: 0.85em; color: #8e8e93; margin-bottom: 5px; }
         .env-amount { font-size: 1.2em; font-weight: bold; color: var(--success); }
         .env-amount.low { color: var(--warning); }
         .env-amount.empty { color: var(--danger); }
+        .env-progress { font-size: 0.8em; color: #8e8e93; margin-top: 4px;}
 
         /* Calendar */
         .cal-header { text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
         .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 0.8em; color: #8e8e93; margin-bottom: 5px; }
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 15px;}
-        .cal-cell { background: #2c2c2e; border-radius: 8px; padding: 10px 0; text-align: center; font-size: 0.9em; position: relative; }
+        .cal-cell { background: #2c2c2e; border-radius: 8px; padding: 10px 0 16px 0; text-align: center; font-size: 0.9em; position: relative; }
         .cal-cell.empty { background: transparent; }
-        .cal-cell.today { background: var(--accent); color: white; font-weight: bold; }
-        .cal-dot { width: 6px; height: 6px; background: var(--purple); border-radius: 50%; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); }
+        .cal-cell.today { background: #48484a; color: white; font-weight: bold; }
+        .dots-container { position: absolute; bottom: 3px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; }
+        .cal-dot { width: 6px; height: 6px; border-radius: 50%; }
 
         /* Form Inputs */
         label { font-size: 0.9em; color: #8e8e93; margin-bottom: 5px; display: block; }
         input, select, button, textarea { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 12px; border: none; font-size: 16px; box-sizing: border-box; background: #2c2c2e; color: white; font-family: inherit;}
         textarea { resize: vertical; min-height: 80px; }
+        input[type="color"] { padding: 5px; height: 50px; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
         input[type="checkbox"] { width: 24px; height: 24px; margin-right: 10px; vertical-align: middle; -webkit-appearance: auto; accent-color: var(--accent); flex-shrink: 0;}
         .checkbox-wrapper { display: flex; align-items: flex-start; margin-bottom: 15px; background: #2c2c2e; padding: 15px; border-radius: 12px; }
@@ -50,14 +54,17 @@
         /* Settings & Lists */
         .setting-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
         .setting-item:last-child { border-bottom: none; }
+        .btn-group { display: flex; gap: 5px; }
+        .edit-btn { background: #48484a; padding: 8px 12px; border-radius: 8px; font-size: 14px; width: auto; margin: 0; }
         .delete-btn { background: var(--danger); padding: 8px 12px; width: auto; margin: 0; border-radius: 8px; font-size: 14px; }
         .list-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
         .item-details { flex-grow: 1; }
-        .item-title { font-weight: bold; font-size: 1.1em; }
+        .item-title { font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 5px;}
+        .color-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
         .item-sub { font-size: 0.8em; color: #8e8e93; margin-top: 4px; }
         .item-amount { font-weight: bold; margin-right: 15px; }
         .amount-expense { color: var(--danger); }
-        .amount-upcoming { color: var(--purple); }
+        .amount-deposit { color: var(--success); }
         .badge { background: #38383a; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 5px; color: var(--purple);}
         
         /* Navigation */
@@ -71,13 +78,16 @@
     <div id="notification-area"></div>
 
     <div id="view-envelopes" class="container">
-        <h2>My Monthly Envelopes</h2>
-        <div id="envelope-grid" class="envelope-grid"></div>
+        <h3>Spending Budgets</h3>
+        <div id="budget-grid" class="envelope-grid"></div>
+
+        <h3>Savings Goals</h3>
+        <div id="savings-grid" class="envelope-grid"></div>
     </div>
 
     <div id="view-log" class="container hidden">
         <div class="card">
-            <h2>Log an Expense</h2>
+            <h2 id="log-header">Log an Expense / Deposit</h2>
             <form id="expense-form">
                 <label>1. Select Category</label>
                 <select id="category" required onchange="updateDynamicBudget()"></select>
@@ -89,7 +99,7 @@
                 <label>3. Note (Optional)</label>
                 <input type="text" id="note" placeholder="e.g., Dinner with friends">
 
-                <button type="submit">Save Expense</button>
+                <button type="submit" id="log-btn">Save</button>
             </form>
         </div>
     </div>
@@ -108,29 +118,22 @@
             <h2>Add Scheduled Expense</h2>
             <form id="upcoming-form">
                 <input type="text" id="up-title" placeholder="Description (e.g. Netflix)" required>
-                
                 <label>Linked Category</label>
                 <select id="up-category" required></select>
-
                 <label>Due Date</label>
                 <input type="date" id="up-date" required>
-                
                 <input type="text" id="up-amount" inputmode="decimal" placeholder="Amount (€)" required>
-
                 <input type="text" id="up-note" placeholder="Note (Optional)">
-                
                 <label>Repeats?</label>
                 <select id="up-freq">
                     <option value="none">Does not repeat</option>
                     <option value="monthly">Every Month</option>
                     <option value="yearly">Every Year</option>
                 </select>
-
                 <div class="checkbox-wrapper">
                     <input type="checkbox" id="up-autopay">
                     <label for="up-autopay">Auto-Pay (Logs automatically on date)</label>
                 </div>
-
                 <button type="submit" style="background: var(--purple);">Save to Calendar</button>
             </form>
         </div>
@@ -152,25 +155,32 @@
                 <input type="checkbox" id="chk-compare" onchange="saveActiveNotes()">
                 <label for="chk-compare">I have compared my expenses to my bank app</label>
             </div>
-            
             <label>Monthly Notes & Reminders</label>
-            <textarea id="active-notes-text" placeholder="Write reminders, thoughts on this month's spending, etc..." oninput="saveActiveNotes()"></textarea>
-            
+            <textarea id="active-notes-text" placeholder="Write reminders, thoughts on this month's spending..." oninput="saveActiveNotes()"></textarea>
             <button onclick="downloadCSV()" style="background: #32d74b; margin-top: 10px;">Download Detailed Report</button>
         </div>
-
         <div class="card">
-            <h2>Recent Expenses</h2>
+            <h2>Recent History</h2>
             <div id="history-list"></div>
         </div>
     </div>
 
     <div id="view-settings" class="container hidden">
         <div class="card">
-            <h2>Add New Envelope</h2>
+            <h2>Add New Category</h2>
             <form id="add-env-form">
                 <input type="text" id="new-env-name" placeholder="Category Name" required>
-                <input type="text" id="new-env-budget" inputmode="decimal" placeholder="Monthly Budget (€)" required>
+                <input type="text" id="new-env-budget" inputmode="decimal" placeholder="Amount (€)" required>
+                
+                <label>Type of Envelope</label>
+                <select id="new-env-type">
+                    <option value="budget">Spending Budget</option>
+                    <option value="savings">Savings Goal</option>
+                </select>
+
+                <label>Envelope Color</label>
+                <input type="color" id="new-env-color" value="#0a84ff">
+                
                 <button type="submit">Add Category</button>
             </form>
         </div>
@@ -190,20 +200,26 @@
     </div>
 
     <script>
-        const defaultEnvelopes = [
-            { id: 1, name: "Rent", budget: 100 }, { id: 2, name: "Groceries", budget: 550 },
-            { id: 3, name: "Insurances", budget: 89.50 }, { id: 4, name: "Restaurants", budget: 80 }
+        // Data Initialization & Migration
+        let envelopesData = JSON.parse(localStorage.getItem('my_budget_env')) || [
+            { id: 1, name: "Rent", budget: 100, type: "budget", color: "#0a84ff" },
+            { id: 2, name: "Groceries", budget: 550, type: "budget", color: "#32d74b" }
         ];
+        
+        // Migration script for old users
+        envelopesData = envelopesData.map(env => ({
+            ...env,
+            type: env.type || 'budget',
+            color: env.color || '#0a84ff'
+        }));
 
-        let envelopesData = JSON.parse(localStorage.getItem('my_budget_env')) || defaultEnvelopes;
         let transactions = JSON.parse(localStorage.getItem('my_budget_tx')) || [];
         let scheduled = JSON.parse(localStorage.getItem('my_budget_sched')) || [];
         let activeNotes = JSON.parse(localStorage.getItem('my_budget_notes')) || { downloaded: false, compared: false, text: "" };
 
-        // HELPER: Convert comma to dot for European iPhones
         function parseAmount(valStr) {
             if (!valStr) return 0;
-            let cleaned = valStr.replace(',', '.');
+            let cleaned = String(valStr).replace(',', '.');
             return parseFloat(cleaned) || 0;
         }
 
@@ -218,6 +234,7 @@
             loadActiveNotes();
         }
 
+        // --- CORE REMINDERS ---
         function loadActiveNotes() {
             document.getElementById('chk-download').checked = activeNotes.downloaded;
             document.getElementById('chk-compare').checked = activeNotes.compared;
@@ -240,7 +257,6 @@
             scheduled.forEach(item => {
                 if (item.date <= todayStr) {
                     let logNote = item.note ? `Auto-Pay: ${item.title} - ${item.note}` : `Auto-Pay: ${item.title}`;
-                    
                     if (item.autoPay) {
                         transactions.push({ id: Date.now() + Math.random(), date: item.date + "T12:00:00Z", amount: item.amount, category: item.category, note: logNote });
                         if (item.frequency === 'none') {
@@ -252,10 +268,7 @@
                     } else {
                         let banner = document.createElement('div');
                         banner.className = 'alert-banner';
-                        banner.innerHTML = `
-                            <span>⚠️ Due: ${item.title} (${item.amount}€)</span>
-                            <button class="alert-btn" onclick="markPaidManually(${item.id})">Mark Paid</button>
-                        `;
+                        banner.innerHTML = `<span>⚠️ Due: ${item.title} (${item.amount}€)</span><button class="alert-btn" onclick="markPaidManually(${item.id})">Mark Paid</button>`;
                         notifArea.appendChild(banner);
                     }
                 }
@@ -290,100 +303,177 @@
             }
         }
 
+        // --- CATEGORIES & UI ---
         function populateCategoryDropdowns() {
             const catSelect = document.getElementById('category');
             const upCatSelect = document.getElementById('up-category');
             catSelect.innerHTML = '<option value="" disabled selected>Tap to choose...</option>';
             upCatSelect.innerHTML = '<option value="" disabled selected>Tap to choose...</option>';
             envelopesData.forEach(env => {
-                catSelect.innerHTML += `<option value="${env.name}">${env.name}</option>`;
-                upCatSelect.innerHTML += `<option value="${env.name}">${env.name}</option>`;
+                let icon = env.type === 'savings' ? '💰 ' : '';
+                catSelect.innerHTML += `<option value="${env.name}">${icon}${env.name}</option>`;
+                upCatSelect.innerHTML += `<option value="${env.name}">${icon}${env.name}</option>`;
             });
         }
 
         function getSpentForCategory(categoryName) {
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
+            const env = envelopesData.find(e => e.name === categoryName);
+            
             return transactions.reduce((total, tx) => {
                 let txDate = new Date(tx.date);
-                if (tx.category === categoryName && txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
-                    return total + tx.amount;
+                // If it's a budget, look at this month only. If it's savings, look at all time!
+                if (tx.category === categoryName) {
+                    if (env && env.type === 'savings') return total + tx.amount;
+                    if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) return total + tx.amount;
                 }
                 return total;
             }, 0);
         }
 
         function renderEnvelopes() {
-            const grid = document.getElementById('envelope-grid');
-            grid.innerHTML = '';
+            const budgetGrid = document.getElementById('budget-grid');
+            const savingsGrid = document.getElementById('savings-grid');
+            budgetGrid.innerHTML = '';
+            savingsGrid.innerHTML = '';
+
             envelopesData.forEach(env => {
                 let spent = getSpentForCategory(env.name);
-                let remaining = env.budget - spent;
                 let div = document.createElement('div');
-                div.className = 'envelope';
-                let amountClass = 'env-amount';
-                if (remaining <= 0) amountClass += ' empty';
-                else if (remaining < (env.budget * 0.2)) amountClass += ' low';
-
-                div.innerHTML = `<div class="env-title">${env.name}</div><div class="${amountClass}">${remaining.toFixed(2)} €</div>`;
+                
                 div.onclick = () => {
                     document.getElementById('category').value = env.name;
                     updateDynamicBudget();
                     switchView('log');
                 };
-                grid.appendChild(div);
+
+                if(env.type === 'savings') {
+                    div.className = 'envelope savings-env';
+                    div.style.borderTopColor = env.color;
+                    let percentage = env.budget > 0 ? Math.min(100, (spent / env.budget) * 100).toFixed(0) : 0;
+                    div.innerHTML = `
+                        <div class="env-title">${env.name}</div>
+                        <div class="env-amount" style="color:${env.color}">${spent.toFixed(2)} €</div>
+                        <div class="env-progress">Goal: ${env.budget} € (${percentage}%)</div>
+                    `;
+                    savingsGrid.appendChild(div);
+                } else {
+                    div.className = 'envelope';
+                    div.style.borderTopColor = env.color;
+                    let remaining = env.budget - spent;
+                    let amountClass = 'env-amount';
+                    if (remaining <= 0) amountClass += ' empty';
+                    else if (remaining < (env.budget * 0.2)) amountClass += ' low';
+
+                    div.innerHTML = `<div class="env-title">${env.name}</div><div class="${amountClass}">${remaining.toFixed(2)} €</div>`;
+                    budgetGrid.appendChild(div);
+                }
             });
+            
+            // Hide headers if empty
+            budgetGrid.previousElementSibling.style.display = budgetGrid.innerHTML === '' ? 'none' : 'block';
+            savingsGrid.previousElementSibling.style.display = savingsGrid.innerHTML === '' ? 'none' : 'block';
         }
 
+        function updateDynamicBudget() {
+            const category = document.getElementById('category').value;
+            const display = document.getElementById('dynamic-budget-display');
+            const btn = document.getElementById('log-btn');
+            const header = document.getElementById('log-header');
+            if (!category) { display.classList.add('hidden'); return; }
+            
+            const env = envelopesData.find(e => e.name === category);
+            let spent = getSpentForCategory(category);
+            
+            if(env && env.type === 'savings') {
+                header.textContent = "Log a Deposit";
+                btn.textContent = "Save Deposit";
+                display.textContent = `Saved so far: ${spent.toFixed(2)} € / ${env.budget} €`;
+                display.style.color = 'var(--purple)';
+                display.style.backgroundColor = 'rgba(191, 90, 242, 0.1)';
+            } else {
+                header.textContent = "Log an Expense";
+                btn.textContent = "Save Expense";
+                let remaining = env ? (env.budget - spent) : 0;
+                display.textContent = `${category} left: ${remaining.toFixed(2)} €`;
+                display.style.color = remaining < 0 ? 'var(--danger)' : 'var(--success)';
+                display.style.backgroundColor = remaining < 0 ? 'rgba(255, 69, 58, 0.1)' : 'rgba(50, 215, 75, 0.1)';
+            }
+            display.classList.remove('hidden');
+        }
+
+        // --- EDITING & SETTINGS ---
         function renderSettings() {
             const list = document.getElementById('settings-env-list');
             list.innerHTML = '';
             envelopesData.forEach(env => {
                 let div = document.createElement('div');
                 div.className = 'setting-item';
+                let typeLabel = env.type === 'savings' ? 'Savings Goal' : 'Budget';
                 div.innerHTML = `
-                    <div><strong>${env.name}</strong><br><span style="color:#8e8e93; font-size:0.8em;">Budget: ${env.budget} €</span></div>
-                    <button class="delete-btn" onclick="deleteEnv(${env.id})">Delete</button>
+                    <div>
+                        <strong><span class="color-swatch" style="background-color:${env.color}"></span> ${env.name}</strong><br>
+                        <span style="color:#8e8e93; font-size:0.8em;">${typeLabel}: ${env.budget} €</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="edit-btn" onclick="editEnv(${env.id})">Edit</button>
+                        <button class="delete-btn" onclick="deleteEnv(${env.id})">X</button>
+                    </div>
                 `;
                 list.appendChild(div);
             });
+        }
+
+        window.editEnv = function(id) {
+            let env = envelopesData.find(e => e.id === id);
+            if(!env) return;
+            
+            let newName = prompt("Edit Category Name:", env.name);
+            if(newName === null) return;
+            
+            let newBudget = prompt("Edit Amount (€):", env.budget);
+            if(newBudget === null) return;
+            newBudget = parseAmount(newBudget);
+            
+            // Safely update all history to the new name!
+            if(newName.trim() !== "" && newName !== env.name) {
+                transactions.forEach(tx => { if(tx.category === env.name) tx.category = newName.trim(); });
+                scheduled.forEach(s => { if(s.category === env.name) s.category = newName.trim(); });
+                localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
+                localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
+            }
+            
+            env.name = newName.trim() !== "" ? newName.trim() : env.name;
+            env.budget = newBudget;
+            localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
+            init();
         }
 
         document.getElementById('add-env-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const name = document.getElementById('new-env-name').value;
             const budget = parseAmount(document.getElementById('new-env-budget').value);
-            envelopesData.push({ id: Date.now(), name, budget });
+            const type = document.getElementById('new-env-type').value;
+            const color = document.getElementById('new-env-color').value;
+            
+            envelopesData.push({ id: Date.now(), name, budget, type, color });
             localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
             this.reset();
-            populateCategoryDropdowns();
-            renderSettings();
-            renderEnvelopes();
+            document.getElementById('new-env-color').value = "#0a84ff"; // reset default color
+            init();
             alert("Category Added!");
         });
 
         window.deleteEnv = function(id) {
-            if(confirm("Delete this category? (Past transactions will stay in history)")) {
+            if(confirm("Delete this category? (Past transactions will stay safely in history)")) {
                 envelopesData = envelopesData.filter(e => e.id !== id);
                 localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
-                populateCategoryDropdowns();
-                renderSettings();
-                renderEnvelopes();
+                init();
             }
         }
 
-        function updateDynamicBudget() {
-            const category = document.getElementById('category').value;
-            const display = document.getElementById('dynamic-budget-display');
-            if (!category) { display.classList.add('hidden'); return; }
-            const env = envelopesData.find(e => e.name === category);
-            let remaining = env ? (env.budget - getSpentForCategory(category)) : 0;
-            display.textContent = `${category} left: ${remaining.toFixed(2)} €`;
-            display.classList.remove('hidden');
-            display.style.color = remaining < 0 ? 'var(--danger)' : 'var(--success)';
-            display.style.backgroundColor = remaining < 0 ? 'rgba(255, 69, 58, 0.1)' : 'rgba(50, 215, 75, 0.1)';
-        }
-
+        // --- FORMS & LISTS ---
         document.getElementById('expense-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const amount = parseAmount(document.getElementById('amount').value);
@@ -393,8 +483,7 @@
             localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
             this.reset();
             document.getElementById('dynamic-budget-display').classList.add('hidden');
-            renderEnvelopes();
-            renderHistory();
+            init();
             switchView('envelopes');
         });
 
@@ -411,8 +500,7 @@
             scheduled.push({ id: Date.now(), title, category, date, amount, note, frequency, autoPay });
             localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
             this.reset();
-            renderUpcoming();
-            renderCalendar();
+            init();
             switchView('upcoming');
         });
 
@@ -421,6 +509,9 @@
             list.innerHTML = '';
             const sortedSched = [...scheduled].sort((a, b) => new Date(a.date) - new Date(b.date));
             sortedSched.forEach(item => {
+                const env = envelopesData.find(e => e.name === item.category);
+                const color = env ? env.color : 'var(--purple)';
+                
                 let div = document.createElement('div');
                 div.className = 'list-item';
                 let dateStr = new Date(item.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -430,7 +521,7 @@
                 
                 div.innerHTML = `
                     <div class="item-details">
-                        <div class="item-title">${item.title}</div>
+                        <div class="item-title"><span class="color-swatch" style="background-color:${color}"></span> ${item.title}</div>
                         <div class="item-sub">Due: ${dateStr} ${item.note ? '- ' + item.note : ''} ${tags}</div>
                     </div>
                     <div class="item-amount amount-upcoming">${item.amount.toFixed(2)} €</div>
@@ -440,7 +531,6 @@
             });
         }
 
-        // RESTORED CALENDAR FUNCTION
         function renderCalendar() {
             const today = new Date();
             const month = today.getMonth();
@@ -459,14 +549,27 @@
             }
             
             for(let i = 1; i <= daysInMonth; i++) {
-                let isToday = i === today.getDate() ? 'today' : '';
-                let hasEvent = scheduled.some(item => {
+                let isToday = i === today.getDate() && month === new Date().getMonth() ? 'today' : '';
+                
+                // Find all events for this day to generate dots
+                let eventsToday = scheduled.filter(item => {
                     let d = new Date(item.date);
                     return d.getDate() === i && d.getMonth() === month && d.getFullYear() === year;
                 });
                 
-                let dotHtml = hasEvent ? `<div class="cal-dot"></div>` : '';
-                grid.innerHTML += `<div class="cal-cell ${isToday}">${i}${dotHtml}</div>`;
+                let dotsHtml = '';
+                if(eventsToday.length > 0) {
+                    dotsHtml = '<div class="dots-container">';
+                    // Limit to 3 dots so it doesn't overflow the UI
+                    eventsToday.slice(0, 3).forEach(ev => {
+                        const env = envelopesData.find(e => e.name === ev.category);
+                        const dotColor = env ? env.color : 'var(--purple)';
+                        dotsHtml += `<div class="cal-dot" style="background-color: ${dotColor}"></div>`;
+                    });
+                    dotsHtml += '</div>';
+                }
+                
+                grid.innerHTML += `<div class="cal-cell ${isToday}">${i}${dotsHtml}</div>`;
             }
         }
 
@@ -474,8 +577,7 @@
             if(confirm("Delete this scheduled expense?")) {
                 scheduled = scheduled.filter(s => s.id !== id);
                 localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
-                renderUpcoming();
-                renderCalendar();
+                init();
             }
         }
 
@@ -484,15 +586,19 @@
             list.innerHTML = '';
             const sortedTx = [...transactions].sort((a, b) => b.id - a.id);
             sortedTx.forEach(tx => {
+                const env = envelopesData.find(e => e.name === tx.category);
+                const color = env ? env.color : '#8e8e93';
+                const isSavings = env && env.type === 'savings';
+                
                 let div = document.createElement('div');
                 div.className = 'list-item';
                 let dateStr = new Date(tx.date).toLocaleDateString();
                 div.innerHTML = `
                     <div class="item-details">
-                        <div class="item-title">${tx.category}</div>
+                        <div class="item-title"><span class="color-swatch" style="background-color:${color}"></span> ${tx.category}</div>
                         <div class="item-sub">${dateStr} ${tx.note ? '- ' + tx.note : ''}</div>
                     </div>
-                    <div class="item-amount amount-expense">${tx.amount.toFixed(2)} €</div>
+                    <div class="item-amount ${isSavings ? 'amount-deposit' : 'amount-expense'}">${isSavings ? '+' : ''}${tx.amount.toFixed(2)} €</div>
                     <button class="delete-btn" onclick="deleteTx(${tx.id})">X</button>
                 `;
                 list.appendChild(div);
@@ -500,11 +606,10 @@
         }
 
         window.deleteTx = function(id) {
-            if(confirm("Delete this expense?")) {
+            if(confirm("Delete this entry?")) {
                 transactions = transactions.filter(tx => tx.id !== id);
                 localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
-                renderEnvelopes();
-                renderHistory();
+                init();
             }
         }
 
@@ -518,27 +623,29 @@
         }
 
         window.downloadCSV = function() {
-            let csv = "Date,Category,Amount,Note\n";
+            let csv = "Date,Category,Type,Amount,Note\n";
             transactions.forEach(tx => {
+                const env = envelopesData.find(e => e.name === tx.category);
+                const type = env && env.type === 'savings' ? 'Deposit' : 'Expense';
                 let d = new Date(tx.date).toLocaleDateString();
                 let safeNote = tx.note ? `"${tx.note.replace(/"/g, '""')}"` : "";
-                csv += `${d},${tx.category},${tx.amount},${safeNote}\n`;
+                csv += `${d},${tx.category},${type},${tx.amount},${safeNote}\n`;
             });
             
-            csv += "\n\n--- CURRENT MONTH SUMMARY ---\n";
-            csv += "Category,Monthly Budget,Amount Spent,Amount Remaining,Status\n";
+            csv += "\n\n--- CURRENT STATUS SUMMARY ---\n";
+            csv += "Category,Type,Budget/Goal,Spent/Saved,Remaining,Status\n";
             envelopesData.forEach(env => {
                 let spent = getSpentForCategory(env.name);
-                let remaining = env.budget - spent;
-                let status = remaining >= 0 ? "Economized/On Track" : "OVERSPENT";
-                csv += `${env.name},${env.budget},${spent},${remaining},${status}\n`;
+                if(env.type === 'savings') {
+                    let remaining = env.budget - spent;
+                    let status = spent >= env.budget ? "GOAL REACHED" : "Saving in progress";
+                    csv += `${env.name},Savings,${env.budget},${spent},${remaining},${status}\n`;
+                } else {
+                    let remaining = env.budget - spent;
+                    let status = remaining >= 0 ? "Economized/On Track" : "OVERSPENT";
+                    csv += `${env.name},Budget,${env.budget},${spent},${remaining},${status}\n`;
+                }
             });
-
-            csv += "\n\n--- MONTHLY REVIEW NOTES ---\n";
-            csv += `Downloaded Last Report?,${activeNotes.downloaded ? "Yes" : "No"}\n`;
-            csv += `Compared to Bank App?,${activeNotes.compared ? "Yes" : "No"}\n`;
-            let safeActiveNote = activeNotes.text ? `"${activeNotes.text.replace(/"/g, '""')}"` : "";
-            csv += `My Notes,${safeActiveNote}\n`;
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
