@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="My Budget">
+    <title>My Budget</title>
+    <style>
+        :root { --bg: #000000; --card: #1c1c1e; --text: #ffffff; --accent: #0a84ff; --danger: #ff453a; --success: #32d74b; --warning: #ffd60a; --purple: #bf5af2;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; padding-bottom: 90px; }
+        .container { padding: 20px; }
+        .card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h2 { margin-top: 0; font-size: 1.2em; color: #8e8e93; font-weight: 500;}
+        
+        /* Notification Banner */
+        #notification-area { position: sticky; top: 0; z-index: 200; }
+        .alert-banner { background: var(--danger); color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 10px rgba(0,0,0,0.5); display: flex; justify-content: space-between; align-items: center;}
+        .alert-btn { background: white; color: var(--danger); border: none; padding: 5px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; width: auto; margin:0;}
+
+        /* Envelopes Grid */
+        .envelope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .envelope { background: #2c2c2e; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;}
+        .env-title { font-size: 0.85em; color: #8e8e93; margin-bottom: 5px; }
+        .env-amount { font-size: 1.2em; font-weight: bold; color: var(--success); }
+        .env-amount.low { color: var(--warning); }
+        .env-amount.empty { color: var(--danger); }
+
+        /* Form Inputs */
+        label { font-size: 0.9em; color: #8e8e93; margin-bottom: 5px; display: block; }
+        input, select, button, textarea { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 12px; border: none; font-size: 16px; box-sizing: border-box; background: #2c2c2e; color: white; font-family: inherit;}
+        textarea { resize: vertical; min-height: 80px; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+        input[type="checkbox"] { width: 24px; height: 24px; margin-right: 10px; vertical-align: middle; -webkit-appearance: auto; accent-color: var(--accent); flex-shrink: 0;}
+        .checkbox-wrapper { display: flex; align-items: flex-start; margin-bottom: 15px; background: #2c2c2e; padding: 15px; border-radius: 12px; }
+        .checkbox-wrapper label { margin: 0; color: white; font-size: 0.95em; line-height: 1.4; padding-top: 2px;}
+        button { background: var(--accent); color: white; font-weight: bold; cursor: pointer; -webkit-appearance: none;}
+        .dynamic-budget { text-align: center; font-size: 1.1em; font-weight: bold; margin-bottom: 15px; color: var(--success); padding: 10px; background: rgba(50, 215, 75, 0.1); border-radius: 8px;}
+        
+        /* Settings List */
+        .setting-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
+        .setting-item:last-child { border-bottom: none; }
+        
+        /* General Lists */
+        .delete-btn { background: var(--danger); padding: 8px 12px; width: auto; margin: 0; border-radius: 8px; font-size: 14px; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
+        .item-details { flex-grow: 1; }
+        .item-title { font-weight: bold; font-size: 1.1em; }
+        .item-sub { font-size: 0.8em; color: #8e8e93; margin-top: 4px; }
+        .item-amount { font-weight: bold; margin-right: 15px; }
+        .amount-expense { color: var(--danger); }
+        .amount-upcoming { color: var(--purple); }
+        .badge { background: #38383a; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 5px; color: var(--purple);}
+        
+        /* Navigation */
+        .nav { display: flex; justify-content: space-around; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(28, 28, 30, 0.9); backdrop-filter: blur(10px); padding: 15px 2px 25px 2px; border-top: 1px solid #38383a; z-index: 100;}
+        .nav div { color: var(--accent); font-size: 0.8em; font-weight: 600; cursor: pointer; padding: 8px 5px; text-align: center; flex: 1;}
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="notification-area"></div>
+
+    <div id="view-envelopes" class="container">
+        <h2>My Monthly Envelopes</h2>
+        <div id="envelope-grid" class="envelope-grid"></div>
+    </div>
+
+    <div id="view-log" class="container hidden">
+        <div class="card">
+            <h2>Log an Expense</h2>
+            <form id="expense-form">
+                <label>1. Select Category</label>
+                <select id="category" required onchange="updateDynamicBudget()"></select>
+                <div id="dynamic-budget-display" class="dynamic-budget hidden"></div>
+
+                <label>2. Amount (€)</label>
+                <input type="number" id="amount" step="0.01" placeholder="0.00" required inputmode="decimal">
+                
+                <label>3. Note (Optional)</label>
+                <input type="text" id="note" placeholder="e.g., Dinner with friends">
+
+                <button type="submit">Save Expense</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="view-upcoming" class="container hidden">
+        <div class="card">
+            <h2>Add Scheduled Expense</h2>
+            <form id="upcoming-form">
+                <input type="text" id="up-title" placeholder="Description (e.g. Netflix)" required>
+                
+                <label>Linked Category (for your budget)</label>
+                <select id="up-category" required></select>
+
+                <label>Due Date</label>
+                <input type="date" id="up-date" required>
+                
+                <input type="number" id="up-amount" step="0.01" placeholder="Amount (€)" required inputmode="decimal">
+                
+                <label>Repeats?</label>
+                <select id="up-freq">
+                    <option value="none">Does not repeat</option>
+                    <option value="monthly">Every Month</option>
+                    <option value="yearly">Every Year</option>
+                </select>
+
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="up-autopay">
+                    <label for="up-autopay">Auto-Pay (Logs automatically on date)</label>
+                </div>
+
+                <button type="submit" style="background: var(--purple);">Save to Calendar</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Timeline List</h2>
+            <div id="upcoming-list"></div>
+        </div>
+    </div>
+
+    <div id="view-history" class="container hidden">
+        
+        <div class="card">
+            <h2>Monthly Review Tracker</h2>
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="chk-download" onchange="saveActiveNotes()">
+                <label for="chk-download">I have downloaded last month's report</label>
+            </div>
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="chk-compare" onchange="saveActiveNotes()">
+                <label for="chk-compare">I have compared my expenses to my bank app</label>
+            </div>
+            
+            <label>Monthly Notes & Reminders</label>
+            <textarea id="active-notes-text" placeholder="Write reminders, thoughts on this month's spending, etc..." oninput="saveActiveNotes()"></textarea>
+            
+            <button onclick="downloadCSV()" style="background: #32d74b; margin-top: 10px;">Download Detailed Report</button>
+        </div>
+
+        <div class="card">
+            <h2>Recent Expenses</h2>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <div id="view-settings" class="container hidden">
+        <div class="card">
+            <h2>Add New Envelope</h2>
+            <form id="add-env-form">
+                <input type="text" id="new-env-name" placeholder="Category Name" required>
+                <input type="number" id="new-env-budget" step="0.01" placeholder="Monthly Budget (€)" required inputmode="decimal">
+                <button type="submit">Add Category</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Manage Envelopes</h2>
+            <div id="settings-env-list"></div>
+        </div>
+    </div>
+
+    <div class="nav">
+        <div onclick="switchView('envelopes')">Envelopes</div>
+        <div onclick="switchView('log')">+ Log</div>
+        <div onclick="switchView('upcoming')">Calendar</div>
+        <div onclick="switchView('history')">History</div>
+        <div onclick="switchView('settings')">Settings</div>
+    </div>
+
+    <script>
+        const defaultEnvelopes = [
+            { id: 1, name: "Rent", budget: 100 }, { id: 2, name: "Groceries", budget: 550 },
+            { id: 3, name: "Insurances", budget: 89.50 }, { id: 4, name: "Restaurants", budget: 80 }
+        ];
+
+        let envelopesData = JSON.parse(localStorage.getItem('my_budget_env')) || defaultEnvelopes;
+        let transactions = JSON.parse(localStorage.getItem('my_budget_tx')) || [];
+        let scheduled = JSON.parse(localStorage.getItem('my_budget_sched')) || [];
+        
+        // Load Active Notes State
+        let activeNotes = JSON.parse(localStorage.getItem('my_budget_notes')) || { downloaded: false, compared: false, text: "" };
+
+        function init() {
+            populateCategoryDropdowns();
+            checkAutoPaymentsAndReminders();
+            renderEnvelopes();
+            renderHistory();
+            renderUpcoming();
+            renderSettings();
+            loadActiveNotes();
+        }
+
+        // --- ACTIVE NOTES LOGIC ---
+        function loadActiveNotes() {
+            document.getElementById('chk-download').checked = activeNotes.downloaded;
+            document.getElementById('chk-compare').checked = activeNotes.compared;
+            document.getElementById('active-notes-text').value = activeNotes.text;
+        }
+
+        window.saveActiveNotes = function() {
+            activeNotes.downloaded = document.getElementById('chk-download').checked;
+            activeNotes.compared = document.getElementById('chk-compare').checked;
+            activeNotes.text = document.getElementById('active-notes-text').value;
+            localStorage.setItem('my_budget_notes', JSON.stringify(activeNotes));
+        }
+
+        // --- CORE LOGIC: REMINDERS & AUTO-PAY ---
+        function checkAutoPaymentsAndReminders() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const notifArea = document.getElementById('notification-area');
+            notifArea.innerHTML = '';
+            let modified = false;
+
+            scheduled.forEach(item => {
+                if (item.date <= todayStr) {
+                    if (item.autoPay) {
+                        transactions.push({ id: Date.now() + Math.random(), date: item.date + "T12:00:00Z", amount: item.amount, category: item.category, note: "Auto-Pay: " + item.title });
+                        if (item.frequency === 'none') {
+                            scheduled = scheduled.filter(s => s.id !== item.id);
+                        } else {
+                            item.date = getNextDate(item.date, item.frequency);
+                        }
+                        modified = true;
+                    } else {
+                        let banner = document.createElement('div');
+                        banner.className = 'alert-banner';
+                        banner.innerHTML = `
+                            <span>⚠️ Due: ${item.title} (${item.amount}€)</span>
+                            <button class="alert-btn" onclick="markPaidManually(${item.id})">Mark Paid</button>
+                        `;
+                        notifArea.appendChild(banner);
+                    }
+                }
+            });
+
+            if(modified) {
+                localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
+                localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
+            }
+        }
+
+        function getNextDate(dateStr, frequency) {
+            let d = new Date(dateStr);
+            if (frequency === 'monthly') d.setMonth(d.getMonth() + 1);
+            if (frequency === 'yearly') d.setFullYear(d.getFullYear() + 1);
+            return d.toISOString().split('T')[0];
+        }
+
+        window.markPaidManually = function(id) {
+            let item = scheduled.find(s => s.id === id);
+            if(item) {
+                transactions.push({ id: Date.now(), date: new Date().toISOString(), amount: item.amount, category: item.category, note: item.title });
+                if (item.frequency === 'none') {
+                    scheduled = scheduled.filter(s => s.id !== item.id);
+                } else {
+                    item.date = getNextDate(item.date, item.frequency);
+                }
+                localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
+                localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
+                init();
+            }
+        }
+
+        // --- ENVELOPES & SETTINGS LOGIC ---
+        function populateCategoryDropdowns() {
+            const catSelect = document.getElementById('category');
+            const upCatSelect = document.getElementById('up-category');
+            catSelect.innerHTML = '<option value="" disabled selected>Tap to choose...</option>';
+            upCatSelect.innerHTML = '<option value="" disabled selected>Tap to choose...</option>';
+            envelopesData.forEach(env => {
+                catSelect.innerHTML += `<option value="${env.name}">${env.name}</option>`;
+                upCatSelect.innerHTML += `<option value="${env.name}">${env.name}</option>`;
+            });
+        }
+
+        function getSpentForCategory(categoryName) {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            return transactions.reduce((total, tx) => {
+                let txDate = new Date(tx.date);
+                if (tx.category === categoryName && txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
+                    return total + tx.amount;
+                }
+                return total;
+            }, 0);
+        }
+
+        function renderEnvelopes() {
+            const grid = document.getElementById('envelope-grid');
+            grid.innerHTML = '';
+            envelopesData.forEach(env => {
+                let spent = getSpentForCategory(env.name);
+                let remaining = env.budget - spent;
+                let div = document.createElement('div');
+                div.className = 'envelope';
+                let amountClass = 'env-amount';
+                if (remaining <= 0) amountClass += ' empty';
+                else if (remaining < (env.budget * 0.2)) amountClass += ' low';
+
+                div.innerHTML = `<div class="env-title">${env.name}</div><div class="${amountClass}">${remaining.toFixed(2)} €</div>`;
+                div.onclick = () => {
+                    document.getElementById('category').value = env.name;
+                    updateDynamicBudget();
+                    switchView('log');
+                };
+                grid.appendChild(div);
+            });
+        }
+
+        function renderSettings() {
+            const list = document.getElementById('settings-env-list');
+            list.innerHTML = '';
+            envelopesData.forEach(env => {
+                let div = document.createElement('div');
+                div.className = 'setting-item';
+                div.innerHTML = `
+                    <div><strong>${env.name}</strong><br><span style="color:#8e8e93; font-size:0.8em;">Budget: ${env.budget} €</span></div>
+                    <button class="delete-btn" onclick="deleteEnv(${env.id})">Delete</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        document.getElementById('add-env-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-env-name').value;
+            const budget = parseFloat(document.getElementById('new-env-budget').value);
+            envelopesData.push({ id: Date.now(), name, budget });
+            localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
+            this.reset();
+            populateCategoryDropdowns();
+            renderSettings();
+            renderEnvelopes();
+            alert("Category Added!");
+        });
+
+        window.deleteEnv = function(id) {
+            if(confirm("Delete this category? (Past transactions will stay in history)")) {
+                envelopesData = envelopesData.filter(e => e.id !== id);
+                localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
+                populateCategoryDropdowns();
+                renderSettings();
+                renderEnvelopes();
+            }
+        }
+
+        function updateDynamicBudget() {
+            const category = document.getElementById('category').value;
+            const display = document.getElementById('dynamic-budget-display');
+            if (!category) { display.classList.add('hidden'); return; }
+            const env = envelopesData.find(e => e.name === category);
+            let remaining = env ? (env.budget - getSpentForCategory(category)) : 0;
+            display.textContent = `${category} left: ${remaining.toFixed(2)} €`;
+            display.classList.remove('hidden');
+            display.style.color = remaining < 0 ? 'var(--danger)' : 'var(--success)';
+            display.style.backgroundColor = remaining < 0 ? 'rgba(255, 69, 58, 0.1)' : 'rgba(50, 215, 75, 0.1)';
+        }
+
+        // --- FORMS & LISTS ---
+        document.getElementById('expense-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const category = document.getElementById('category').value;
+            const note = document.getElementById('note').value;
+            transactions.push({ id: Date.now(), date: new Date().toISOString(), amount, category, note });
+            localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
+            this.reset();
+            document.getElementById('dynamic-budget-display').classList.add('hidden');
+            renderEnvelopes();
+            renderHistory();
+            switchView('envelopes');
+        });
+
+        document.getElementById('upcoming-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const title = document.getElementById('up-title').value;
+            const category = document.getElementById('up-category').value;
+            const date = document.getElementById('up-date').value;
+            const amount = parseFloat(document.getElementById('up-amount').value);
+            const frequency = document.getElementById('up-freq').value;
+            const autoPay = document.getElementById('up-autopay').checked;
+
+            scheduled.push({ id: Date.now(), title, category, date, amount, frequency, autoPay });
+            localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
+            this.reset();
+            renderUpcoming();
+            switchView('upcoming');
+        });
+
+        function renderUpcoming() {
+            const list = document.getElementById('upcoming-list');
+            list.innerHTML = '';
+            const sortedSched = [...scheduled].sort((a, b) => new Date(a.date) - new Date(b.date));
+            sortedSched.forEach(item => {
+                let div = document.createElement('div');
+                div.className = 'list-item';
+                let dateStr = new Date(item.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                let tags = "";
+                if(item.frequency !== 'none') tags += `<span class="badge">🔄 ${item.frequency}</span>`;
+                if(item.autoPay) tags += `<span class="badge" style="color:var(--success);">⚡ Auto</span>`;
+                
+                div.innerHTML = `
+                    <div class="item-details">
+                        <div class="item-title">${item.title}</div>
+                        <div class="item-sub">Due: ${dateStr} ${tags}</div>
+                    </div>
+                    <div class="item-amount amount-upcoming">${item.amount.toFixed(2)} €</div>
+                    <button class="delete-btn" onclick="deleteSched(${item.id})">X</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        window.deleteSched = function(id) {
+            if(confirm("Delete this scheduled expense?")) {
+                scheduled = scheduled.filter(s => s.id !== id);
+                localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
+                renderUpcoming();
+            }
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            const sortedTx = [...transactions].sort((a, b) => b.id - a.id);
+            sortedTx.forEach(tx => {
+                let div = document.createElement('div');
+                div.className = 'list-item';
+                let dateStr = new Date(tx.date).toLocaleDateString();
+                div.innerHTML = `
+                    <div class="item-details">
+                        <div class="item-title">${tx.category}</div>
+                        <div class="item-sub">${dateStr} ${tx.note ? '- ' + tx.note : ''}</div>
+                    </div>
+                    <div class="item-amount amount-expense">${tx.amount.toFixed(2)} €</div>
+                    <button class="delete-btn" onclick="deleteTx(${tx.id})">X</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        window.deleteTx = function(id) {
+            if(confirm("Delete this expense?")) {
+                transactions = transactions.filter(tx => tx.id !== id);
+                localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
+                renderEnvelopes();
+                renderHistory();
+            }
+        }
+
+        window.switchView = function(view) {
+            ['envelopes', 'log', 'upcoming', 'history', 'settings'].forEach(v => {
+                document.getElementById('view-' + v).classList.add('hidden');
+            });
+            document.getElementById('view-' + view).classList.remove('hidden');
+            if(view !== 'log') { document.getElementById('category').value = ''; updateDynamicBudget(); }
+        }
+
+        // --- ENHANCED CSV EXPORT ---
+        window.downloadCSV = function() {
+            let csv = "Date,Category,Amount,Note\n";
+            transactions.forEach(tx => {
+                let d = new Date(tx.date).toLocaleDateString();
+                let safeNote = tx.note ? `"${tx.note.replace(/"/g, '""')}"` : "";
+                csv += `${d},${tx.category},${tx.amount},${safeNote}\n`;
+            });
+            
+            csv += "\n\n--- CURRENT MONTH SUMMARY ---\n";
+            csv += "Category,Monthly Budget,Amount Spent,Amount Remaining,Status\n";
+            envelopesData.forEach(env => {
+                let spent = getSpentForCategory(env.name);
+                let remaining = env.budget - spent;
+                let status = remaining >= 0 ? "Economized/On Track" : "OVERSPENT";
+                csv += `${env.name},${env.budget},${spent},${remaining},${status}\n`;
+            });
+
+            // ADD MONTHLY REVIEW TO REPORT
+            csv += "\n\n--- MONTHLY REVIEW NOTES ---\n";
+            csv += `Downloaded Last Report?,${activeNotes.downloaded ? "Yes" : "No"}\n`;
+            csv += `Compared to Bank App?,${activeNotes.compared ? "Yes" : "No"}\n`;
+            let safeActiveNote = activeNotes.text ? `"${activeNotes.text.replace(/"/g, '""')}"` : "";
+            csv += `My Notes,${safeActiveNote}\n`;
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Budget_Analysis_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        init();
+    </script>
+</body>
+</html>
