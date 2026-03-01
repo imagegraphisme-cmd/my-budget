@@ -27,6 +27,15 @@
         .env-amount.low { color: var(--warning); }
         .env-amount.empty { color: var(--danger); }
 
+        /* Calendar */
+        .cal-header { text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
+        .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 0.8em; color: #8e8e93; margin-bottom: 5px; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 15px;}
+        .cal-cell { background: #2c2c2e; border-radius: 8px; padding: 10px 0; text-align: center; font-size: 0.9em; position: relative; }
+        .cal-cell.empty { background: transparent; }
+        .cal-cell.today { background: var(--accent); color: white; font-weight: bold; }
+        .cal-dot { width: 6px; height: 6px; background: var(--purple); border-radius: 50%; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); }
+
         /* Form Inputs */
         label { font-size: 0.9em; color: #8e8e93; margin-bottom: 5px; display: block; }
         input, select, button, textarea { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 12px; border: none; font-size: 16px; box-sizing: border-box; background: #2c2c2e; color: white; font-family: inherit;}
@@ -38,11 +47,9 @@
         button { background: var(--accent); color: white; font-weight: bold; cursor: pointer; -webkit-appearance: none;}
         .dynamic-budget { text-align: center; font-size: 1.1em; font-weight: bold; margin-bottom: 15px; color: var(--success); padding: 10px; background: rgba(50, 215, 75, 0.1); border-radius: 8px;}
         
-        /* Settings List */
+        /* Settings & Lists */
         .setting-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
         .setting-item:last-child { border-bottom: none; }
-        
-        /* General Lists */
         .delete-btn { background: var(--danger); padding: 8px 12px; width: auto; margin: 0; border-radius: 8px; font-size: 14px; }
         .list-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
         .item-details { flex-grow: 1; }
@@ -77,7 +84,7 @@
                 <div id="dynamic-budget-display" class="dynamic-budget hidden"></div>
 
                 <label>2. Amount (€)</label>
-                <input type="number" id="amount" step="0.01" placeholder="0.00" required inputmode="decimal">
+                <input type="text" id="amount" inputmode="decimal" placeholder="0.00" required>
                 
                 <label>3. Note (Optional)</label>
                 <input type="text" id="note" placeholder="e.g., Dinner with friends">
@@ -88,18 +95,29 @@
     </div>
 
     <div id="view-upcoming" class="container hidden">
+        
+        <div class="card">
+            <div id="cal-month-title" class="cal-header">Month</div>
+            <div class="cal-days">
+                <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+            </div>
+            <div id="calendar-grid" class="cal-grid"></div>
+        </div>
+
         <div class="card">
             <h2>Add Scheduled Expense</h2>
             <form id="upcoming-form">
                 <input type="text" id="up-title" placeholder="Description (e.g. Netflix)" required>
                 
-                <label>Linked Category (for your budget)</label>
+                <label>Linked Category</label>
                 <select id="up-category" required></select>
 
                 <label>Due Date</label>
                 <input type="date" id="up-date" required>
                 
-                <input type="number" id="up-amount" step="0.01" placeholder="Amount (€)" required inputmode="decimal">
+                <input type="text" id="up-amount" inputmode="decimal" placeholder="Amount (€)" required>
+
+                <input type="text" id="up-note" placeholder="Note (Optional)">
                 
                 <label>Repeats?</label>
                 <select id="up-freq">
@@ -124,7 +142,6 @@
     </div>
 
     <div id="view-history" class="container hidden">
-        
         <div class="card">
             <h2>Monthly Review Tracker</h2>
             <div class="checkbox-wrapper">
@@ -153,7 +170,7 @@
             <h2>Add New Envelope</h2>
             <form id="add-env-form">
                 <input type="text" id="new-env-name" placeholder="Category Name" required>
-                <input type="number" id="new-env-budget" step="0.01" placeholder="Monthly Budget (€)" required inputmode="decimal">
+                <input type="text" id="new-env-budget" inputmode="decimal" placeholder="Monthly Budget (€)" required>
                 <button type="submit">Add Category</button>
             </form>
         </div>
@@ -181,9 +198,14 @@
         let envelopesData = JSON.parse(localStorage.getItem('my_budget_env')) || defaultEnvelopes;
         let transactions = JSON.parse(localStorage.getItem('my_budget_tx')) || [];
         let scheduled = JSON.parse(localStorage.getItem('my_budget_sched')) || [];
-        
-        // Load Active Notes State
         let activeNotes = JSON.parse(localStorage.getItem('my_budget_notes')) || { downloaded: false, compared: false, text: "" };
+
+        // HELPER: Convert comma to dot for European iPhones
+        function parseAmount(valStr) {
+            if (!valStr) return 0;
+            let cleaned = valStr.replace(',', '.');
+            return parseFloat(cleaned) || 0;
+        }
 
         function init() {
             populateCategoryDropdowns();
@@ -191,11 +213,11 @@
             renderEnvelopes();
             renderHistory();
             renderUpcoming();
+            renderCalendar();
             renderSettings();
             loadActiveNotes();
         }
 
-        // --- ACTIVE NOTES LOGIC ---
         function loadActiveNotes() {
             document.getElementById('chk-download').checked = activeNotes.downloaded;
             document.getElementById('chk-compare').checked = activeNotes.compared;
@@ -209,7 +231,6 @@
             localStorage.setItem('my_budget_notes', JSON.stringify(activeNotes));
         }
 
-        // --- CORE LOGIC: REMINDERS & AUTO-PAY ---
         function checkAutoPaymentsAndReminders() {
             const todayStr = new Date().toISOString().split('T')[0];
             const notifArea = document.getElementById('notification-area');
@@ -218,8 +239,10 @@
 
             scheduled.forEach(item => {
                 if (item.date <= todayStr) {
+                    let logNote = item.note ? `Auto-Pay: ${item.title} - ${item.note}` : `Auto-Pay: ${item.title}`;
+                    
                     if (item.autoPay) {
-                        transactions.push({ id: Date.now() + Math.random(), date: item.date + "T12:00:00Z", amount: item.amount, category: item.category, note: "Auto-Pay: " + item.title });
+                        transactions.push({ id: Date.now() + Math.random(), date: item.date + "T12:00:00Z", amount: item.amount, category: item.category, note: logNote });
                         if (item.frequency === 'none') {
                             scheduled = scheduled.filter(s => s.id !== item.id);
                         } else {
@@ -254,7 +277,8 @@
         window.markPaidManually = function(id) {
             let item = scheduled.find(s => s.id === id);
             if(item) {
-                transactions.push({ id: Date.now(), date: new Date().toISOString(), amount: item.amount, category: item.category, note: item.title });
+                let logNote = item.note ? `${item.title} - ${item.note}` : item.title;
+                transactions.push({ id: Date.now(), date: new Date().toISOString(), amount: item.amount, category: item.category, note: logNote });
                 if (item.frequency === 'none') {
                     scheduled = scheduled.filter(s => s.id !== item.id);
                 } else {
@@ -266,7 +290,6 @@
             }
         }
 
-        // --- ENVELOPES & SETTINGS LOGIC ---
         function populateCategoryDropdowns() {
             const catSelect = document.getElementById('category');
             const upCatSelect = document.getElementById('up-category');
@@ -329,7 +352,7 @@
         document.getElementById('add-env-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const name = document.getElementById('new-env-name').value;
-            const budget = parseFloat(document.getElementById('new-env-budget').value);
+            const budget = parseAmount(document.getElementById('new-env-budget').value);
             envelopesData.push({ id: Date.now(), name, budget });
             localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
             this.reset();
@@ -361,10 +384,9 @@
             display.style.backgroundColor = remaining < 0 ? 'rgba(255, 69, 58, 0.1)' : 'rgba(50, 215, 75, 0.1)';
         }
 
-        // --- FORMS & LISTS ---
         document.getElementById('expense-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            const amount = parseFloat(document.getElementById('amount').value);
+            const amount = parseAmount(document.getElementById('amount').value);
             const category = document.getElementById('category').value;
             const note = document.getElementById('note').value;
             transactions.push({ id: Date.now(), date: new Date().toISOString(), amount, category, note });
@@ -381,14 +403,16 @@
             const title = document.getElementById('up-title').value;
             const category = document.getElementById('up-category').value;
             const date = document.getElementById('up-date').value;
-            const amount = parseFloat(document.getElementById('up-amount').value);
+            const amount = parseAmount(document.getElementById('up-amount').value);
+            const note = document.getElementById('up-note').value;
             const frequency = document.getElementById('up-freq').value;
             const autoPay = document.getElementById('up-autopay').checked;
 
-            scheduled.push({ id: Date.now(), title, category, date, amount, frequency, autoPay });
+            scheduled.push({ id: Date.now(), title, category, date, amount, note, frequency, autoPay });
             localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
             this.reset();
             renderUpcoming();
+            renderCalendar();
             switchView('upcoming');
         });
 
@@ -407,7 +431,7 @@
                 div.innerHTML = `
                     <div class="item-details">
                         <div class="item-title">${item.title}</div>
-                        <div class="item-sub">Due: ${dateStr} ${tags}</div>
+                        <div class="item-sub">Due: ${dateStr} ${item.note ? '- ' + item.note : ''} ${tags}</div>
                     </div>
                     <div class="item-amount amount-upcoming">${item.amount.toFixed(2)} €</div>
                     <button class="delete-btn" onclick="deleteSched(${item.id})">X</button>
@@ -416,11 +440,42 @@
             });
         }
 
+        // RESTORED CALENDAR FUNCTION
+        function renderCalendar() {
+            const today = new Date();
+            const month = today.getMonth();
+            const year = today.getFullYear();
+            
+            document.getElementById('cal-month-title').textContent = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            
+            for(let i = 0; i < firstDay; i++) {
+                grid.innerHTML += `<div class="cal-cell empty"></div>`;
+            }
+            
+            for(let i = 1; i <= daysInMonth; i++) {
+                let isToday = i === today.getDate() ? 'today' : '';
+                let hasEvent = scheduled.some(item => {
+                    let d = new Date(item.date);
+                    return d.getDate() === i && d.getMonth() === month && d.getFullYear() === year;
+                });
+                
+                let dotHtml = hasEvent ? `<div class="cal-dot"></div>` : '';
+                grid.innerHTML += `<div class="cal-cell ${isToday}">${i}${dotHtml}</div>`;
+            }
+        }
+
         window.deleteSched = function(id) {
             if(confirm("Delete this scheduled expense?")) {
                 scheduled = scheduled.filter(s => s.id !== id);
                 localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
                 renderUpcoming();
+                renderCalendar();
             }
         }
 
@@ -459,9 +514,9 @@
             });
             document.getElementById('view-' + view).classList.remove('hidden');
             if(view !== 'log') { document.getElementById('category').value = ''; updateDynamicBudget(); }
+            if(view === 'upcoming') renderCalendar();
         }
 
-        // --- ENHANCED CSV EXPORT ---
         window.downloadCSV = function() {
             let csv = "Date,Category,Amount,Note\n";
             transactions.forEach(tx => {
@@ -479,7 +534,6 @@
                 csv += `${env.name},${env.budget},${spent},${remaining},${status}\n`;
             });
 
-            // ADD MONTHLY REVIEW TO REPORT
             csv += "\n\n--- MONTHLY REVIEW NOTES ---\n";
             csv += `Downloaded Last Report?,${activeNotes.downloaded ? "Yes" : "No"}\n`;
             csv += `Compared to Bank App?,${activeNotes.compared ? "Yes" : "No"}\n`;
