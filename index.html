@@ -55,7 +55,6 @@
         .setting-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
         .setting-item:last-child { border-bottom: none; }
         .btn-group { display: flex; gap: 5px; align-items: center;}
-        .setting-color { width: 35px; height: 35px; padding: 0; margin: 0; border: none; background: transparent; cursor: pointer; border-radius: 6px;}
         .edit-btn { background: #48484a; padding: 8px 12px; border-radius: 8px; font-size: 14px; width: auto; margin: 0; }
         .delete-btn { background: var(--danger); padding: 8px 12px; width: auto; margin: 0; border-radius: 8px; font-size: 14px; }
         .list-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
@@ -68,6 +67,10 @@
         .amount-deposit { color: var(--success); }
         .badge { background: #38383a; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 5px; color: var(--purple);}
         
+        /* Custom Edit Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 300; display: flex; justify-content: center; align-items: center; padding: 20px;}
+        .modal-content { width: 100%; max-width: 400px; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.5);}
+
         /* Navigation */
         .nav { display: flex; justify-content: space-around; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(28, 28, 30, 0.9); backdrop-filter: blur(10px); padding: 15px 2px 25px 2px; border-top: 1px solid #38383a; z-index: 100;}
         .nav div { color: var(--accent); font-size: 0.8em; font-weight: 600; cursor: pointer; padding: 8px 5px; text-align: center; flex: 1;}
@@ -191,6 +194,29 @@
         </div>
     </div>
 
+    <div id="edit-modal" class="modal-overlay hidden">
+        <div class="card modal-content">
+            <h2>Edit Category</h2>
+            <form id="edit-env-form">
+                <input type="hidden" id="edit-env-id">
+                
+                <label>Category Name</label>
+                <input type="text" id="edit-env-name" required>
+                
+                <label>Amount (€)</label>
+                <input type="text" id="edit-env-budget" inputmode="decimal" required>
+                
+                <label>Envelope Color</label>
+                <input type="color" id="edit-env-color">
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button type="button" onclick="closeEditModal()" style="background: #48484a;">Cancel</button>
+                    <button type="submit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="nav">
         <div onclick="switchView('envelopes')">Envelopes</div>
         <div onclick="switchView('log')">+ Log</div>
@@ -205,7 +231,6 @@
             { id: 2, name: "Groceries", budget: 550, type: "budget", color: "#32d74b" }
         ];
         
-        // Safety migration to ensure old categories have colors
         envelopesData = envelopesData.map(env => ({
             ...env,
             type: env.type || 'budget',
@@ -398,7 +423,7 @@
             display.classList.remove('hidden');
         }
 
-        // --- NEW EDITING CONTROLS ---
+        // --- NEW CUSTOM EDIT MODAL ---
         function renderSettings() {
             const list = document.getElementById('settings-env-list');
             list.innerHTML = '';
@@ -407,15 +432,13 @@
                 div.className = 'setting-item';
                 let typeLabel = env.type === 'savings' ? 'Savings Goal' : 'Budget';
                 
-                // Note the new color input directly in the list!
                 div.innerHTML = `
                     <div>
                         <strong><span class="color-swatch" style="background-color:${env.color}"></span> ${env.name}</strong><br>
                         <span style="color:#8e8e93; font-size:0.8em;">${typeLabel}: ${env.budget} €</span>
                     </div>
                     <div class="btn-group">
-                        <input type="color" class="setting-color" value="${env.color}" onchange="updateColor(${env.id}, this.value)" title="Change Color">
-                        <button class="edit-btn" onclick="editEnv(${env.id})">Edit</button>
+                        <button class="edit-btn" onclick="openEditModal(${env.id})">Edit</button>
                         <button class="delete-btn" onclick="deleteEnv(${env.id})">X</button>
                     </div>
                 `;
@@ -423,39 +446,52 @@
             });
         }
 
-        // New function to update color instantly
-        window.updateColor = function(id, newColor) {
-            let env = envelopesData.find(e => e.id === id);
-            if(env) {
-                env.color = newColor;
-                localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
-                init();
-            }
-        }
-
-        window.editEnv = function(id) {
+        window.openEditModal = function(id) {
             let env = envelopesData.find(e => e.id === id);
             if(!env) return;
             
-            let newName = prompt("Edit Category Name:", env.name);
-            if(newName === null) return;
+            // Populate the modal with the current category data
+            document.getElementById('edit-env-id').value = env.id;
+            document.getElementById('edit-env-name').value = env.name;
+            document.getElementById('edit-env-budget').value = env.budget;
+            document.getElementById('edit-env-color').value = env.color;
             
-            let newBudget = prompt("Edit Amount (€):", env.budget);
-            if(newBudget === null) return;
-            newBudget = parseAmount(newBudget);
+            // Show the modal
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        window.closeEditModal = function() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        document.getElementById('edit-env-form').addEventListener('submit', function(e) {
+            e.preventDefault();
             
-            if(newName.trim() !== "" && newName !== env.name) {
-                transactions.forEach(tx => { if(tx.category === env.name) tx.category = newName.trim(); });
-                scheduled.forEach(s => { if(s.category === env.name) s.category = newName.trim(); });
+            const id = parseInt(document.getElementById('edit-env-id').value);
+            const newName = document.getElementById('edit-env-name').value.trim();
+            const newBudget = parseAmount(document.getElementById('edit-env-budget').value);
+            const newColor = document.getElementById('edit-env-color').value;
+
+            let env = envelopesData.find(e => e.id === id);
+            if(!env) return;
+
+            // Safely update history if name changed
+            if(newName !== "" && newName !== env.name) {
+                transactions.forEach(tx => { if(tx.category === env.name) tx.category = newName; });
+                scheduled.forEach(s => { if(s.category === env.name) s.category = newName; });
                 localStorage.setItem('my_budget_tx', JSON.stringify(transactions));
                 localStorage.setItem('my_budget_sched', JSON.stringify(scheduled));
             }
             
-            env.name = newName.trim() !== "" ? newName.trim() : env.name;
+            env.name = newName !== "" ? newName : env.name;
             env.budget = newBudget;
+            env.color = newColor;
+
             localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
+            
+            closeEditModal();
             init();
-        }
+        });
 
         document.getElementById('add-env-form').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -480,6 +516,7 @@
             }
         }
 
+        // --- FORMS & LISTS ---
         document.getElementById('expense-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const amount = parseAmount(document.getElementById('amount').value);
