@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="My Budget">
     <title>My Budget</title>
     <style>
-        :root { --bg: #000000; --card: #1c1c1e; --text: #ffffff; --accent: #0a84ff; --danger: #ff453a; --success: #32d74b; --warning: #ffd60a; --purple: #bf5af2;}
+        :root { --bg: #000000; --card: #1c1c1e; --text: #ffffff; --accent: #0a84ff; --danger: #ff453a; --success: #32d74b; --warning: #ffd60a; --purple: #bf5af2; --dynamic: #ff9f0a;}
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; padding-bottom: 90px; }
         .container { padding: 20px; }
         .card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
@@ -30,7 +30,6 @@
         /* Envelopes Grid */
         .envelope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .envelope { background: #2c2c2e; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-top: 4px solid var(--accent);}
-        .savings-env { border-top: 4px solid var(--purple); }
         .env-title { font-size: 0.85em; color: #8e8e93; margin-bottom: 5px; }
         .env-amount { font-size: 1.2em; font-weight: bold; color: var(--success); }
         .env-amount.low { color: var(--warning); }
@@ -142,7 +141,7 @@
         <div class="card">
             <h2>Add Scheduled Expense</h2>
             <form id="upcoming-form">
-                <input type="text" id="up-title" placeholder="Description (e.g. Netflix)" required>
+                <input type="text" id="up-title" placeholder="Description (e.g. Mom's Gift)" required>
                 <label>Linked Category</label>
                 <select id="up-category" required></select>
                 <label>Due Date</label>
@@ -195,13 +194,18 @@
             <h2>Add New Category</h2>
             <form id="add-env-form">
                 <input type="text" id="new-env-name" placeholder="Category Name" required>
-                <input type="text" id="new-env-budget" inputmode="decimal" placeholder="Amount / Goal (€)" required>
                 
                 <label>Type of Envelope</label>
-                <select id="new-env-type" onchange="toggleDeadlineField('new')">
+                <select id="new-env-type" onchange="toggleFields('new')">
                     <option value="budget">Spending Budget</option>
                     <option value="savings">Savings Goal</option>
+                    <option value="dynamic">Dynamic (Auto-Calculated)</option>
                 </select>
+
+                <div id="new-budget-wrapper">
+                    <label>Amount / Goal (€)</label>
+                    <input type="text" id="new-env-budget" inputmode="decimal" required>
+                </div>
 
                 <div id="new-deadline-wrapper" class="hidden">
                     <label>Target Date (Deadline)</label>
@@ -230,14 +234,17 @@
                 <label>Category Name</label>
                 <input type="text" id="edit-env-name" required>
                 
-                <label>Amount / Goal (€)</label>
-                <input type="text" id="edit-env-budget" inputmode="decimal" required>
-                
                 <label>Type of Envelope</label>
-                <select id="edit-env-type" onchange="toggleDeadlineField('edit')">
+                <select id="edit-env-type" onchange="toggleFields('edit')">
                     <option value="budget">Spending Budget</option>
                     <option value="savings">Savings Goal</option>
+                    <option value="dynamic">Dynamic (Auto-Calculated)</option>
                 </select>
+
+                <div id="edit-budget-wrapper">
+                    <label>Amount / Goal (€)</label>
+                    <input type="text" id="edit-env-budget" inputmode="decimal" required>
+                </div>
 
                 <div id="edit-deadline-wrapper" class="hidden">
                     <label>Target Date (Deadline)</label>
@@ -265,8 +272,7 @@
 
     <script>
         let envelopesData = JSON.parse(localStorage.getItem('my_budget_env')) || [
-            { id: 1, name: "Rent", budget: 100, type: "budget", color: "#0a84ff" },
-            { id: 2, name: "Groceries", budget: 550, type: "budget", color: "#32d74b" }
+            { id: 1, name: "Rent", budget: 100, type: "budget", color: "#0a84ff" }
         ];
         
         envelopesData = envelopesData.map(env => ({
@@ -371,7 +377,7 @@
             catSelect.innerHTML = '<option value="" disabled selected>Tap to choose...</option>';
             upCatSelect.innerHTML = '<option value="" disabled selected>Tap to choose...</option>';
             envelopesData.forEach(env => {
-                let icon = env.type === 'savings' ? '💰 ' : '';
+                let icon = env.type === 'savings' ? '💰 ' : (env.type === 'dynamic' ? '⚡ ' : '');
                 catSelect.innerHTML += `<option value="${env.name}">${icon}${env.name}</option>`;
                 upCatSelect.innerHTML += `<option value="${env.name}">${icon}${env.name}</option>`;
             });
@@ -392,24 +398,33 @@
             }, 0);
         }
 
+        // NEW HELPER: Get total SCHEDULED for a category this month
+        function getScheduledForCategoryCurrentMonth(categoryName) {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            return scheduled.reduce((total, item) => {
+                let d = new Date(item.date);
+                if (item.category === categoryName && d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                    return total + item.amount;
+                }
+                return total;
+            }, 0);
+        }
+
         function calculateMonthlyNeeded(goal, saved, deadlineDateStr) {
             if (!deadlineDateStr) return 0;
             let now = new Date();
             let target = new Date(deadlineDateStr);
-            
             let monthsLeft = (target.getFullYear() - now.getFullYear()) * 12;
             monthsLeft -= now.getMonth();
             monthsLeft += target.getMonth();
-            
             if (monthsLeft <= 0) monthsLeft = 1;
-            
             let amountRemaining = goal - saved;
             if (amountRemaining <= 0) return 0;
-            
             return amountRemaining / monthsLeft;
         }
 
-        // --- NEW DASHBOARD SUMMARY LOGIC ---
         function updateMonthlySummary() {
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
@@ -417,7 +432,7 @@
             let expectedTotal = 0;
             let realityTotal = 0;
 
-            // 1. Calculate Expected (Budgets + Monthly Savings Goals)
+            // 1. Calculate Expected (Budgets + Monthly Savings Goals + Dynamic)
             envelopesData.forEach(env => {
                 if (env.type === 'budget') {
                     expectedTotal += env.budget;
@@ -426,11 +441,13 @@
                     if (saved < env.budget) {
                         expectedTotal += calculateMonthlyNeeded(env.budget, saved, env.deadline);
                     }
+                } else if (env.type === 'dynamic') {
+                    // Expected dynamic budget = what you already spent + what is still scheduled
+                    expectedTotal += getSpentForCategory(env.name) + getScheduledForCategoryCurrentMonth(env.name);
                 }
             });
 
             // 2. Calculate Reality (What you've spent THIS MONTH + What's scheduled THIS MONTH)
-            // A. Add logged expenses from this month
             transactions.forEach(tx => {
                 let txDate = new Date(tx.date);
                 if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
@@ -438,10 +455,8 @@
                 }
             });
 
-            // B. Add upcoming scheduled items for this month (that haven't been paid yet)
             scheduled.forEach(item => {
                 let itemDate = new Date(item.date);
-                // If it's in the current month AND it's in the future (past/today are handled by reminders)
                 if (itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear) {
                     realityTotal += item.amount;
                 }
@@ -459,8 +474,14 @@
 
             envelopesData.forEach(env => {
                 let spent = getSpentForCategory(env.name);
-                let div = document.createElement('div');
                 
+                // DYNAMIC CALCULATION
+                let effectiveBudget = env.budget;
+                if (env.type === 'dynamic') {
+                    effectiveBudget = spent + getScheduledForCategoryCurrentMonth(env.name);
+                }
+
+                let div = document.createElement('div');
                 div.onclick = () => {
                     document.getElementById('category').value = env.name;
                     updateDynamicBudget();
@@ -489,12 +510,16 @@
                 } else {
                     div.className = 'envelope';
                     div.style.borderTopColor = env.color;
-                    let remaining = env.budget - spent;
+                    let remaining = effectiveBudget - spent;
                     let amountClass = 'env-amount';
-                    if (remaining <= 0) amountClass += ' empty';
-                    else if (remaining < (env.budget * 0.2)) amountClass += ' low';
+                    
+                    if (remaining <= 0 && env.type !== 'dynamic') amountClass += ' empty';
+                    else if (remaining <= 0 && env.type === 'dynamic') amountClass = 'env-amount'; // Dynamic never looks "empty" in a bad way
+                    else if (remaining < (effectiveBudget * 0.2)) amountClass += ' low';
 
-                    div.innerHTML = `<div class="env-title">${env.name}</div><div class="${amountClass}">${remaining.toFixed(2)} €</div>`;
+                    let subtitle = env.type === 'dynamic' ? `<br><span style="font-size:0.8em;color:#8e8e93;">(Auto: ${effectiveBudget.toFixed(2)}€)</span>` : '';
+
+                    div.innerHTML = `<div class="env-title">${env.name}</div><div class="${amountClass}">${remaining.toFixed(2)} €</div>${subtitle}`;
                     budgetGrid.appendChild(div);
                 }
             });
@@ -502,7 +527,6 @@
             budgetGrid.previousElementSibling.style.display = budgetGrid.innerHTML === '' ? 'none' : 'block';
             savingsGrid.previousElementSibling.style.display = savingsGrid.innerHTML === '' ? 'none' : 'block';
 
-            // Call the new summary function!
             updateMonthlySummary();
         }
 
@@ -525,7 +549,11 @@
             } else {
                 header.textContent = "Log an Expense";
                 btn.textContent = "Save Expense";
-                let remaining = env ? (env.budget - spent) : 0;
+                
+                let effectiveBudget = env ? env.budget : 0;
+                if (env && env.type === 'dynamic') effectiveBudget = spent + getScheduledForCategoryCurrentMonth(category);
+                
+                let remaining = effectiveBudget - spent;
                 display.textContent = `${category} left: ${remaining.toFixed(2)} €`;
                 display.style.color = remaining < 0 ? 'var(--danger)' : 'var(--success)';
                 display.style.backgroundColor = remaining < 0 ? 'rgba(255, 69, 58, 0.1)' : 'rgba(50, 215, 75, 0.1)';
@@ -533,14 +561,25 @@
             display.classList.remove('hidden');
         }
 
-        window.toggleDeadlineField = function(prefix) {
+        window.toggleFields = function(prefix) {
             const typeSelect = document.getElementById(`${prefix}-env-type`).value;
-            const wrapper = document.getElementById(`${prefix}-deadline-wrapper`);
+            const deadlineWrapper = document.getElementById(`${prefix}-deadline-wrapper`);
+            const budgetWrapper = document.getElementById(`${prefix}-budget-wrapper`);
+            const budgetInput = document.getElementById(`${prefix}-env-budget`);
+
             if(typeSelect === 'savings') {
-                wrapper.classList.remove('hidden');
+                deadlineWrapper.classList.remove('hidden');
+                budgetWrapper.classList.remove('hidden');
+                budgetInput.setAttribute('required', 'true');
+            } else if (typeSelect === 'dynamic') {
+                deadlineWrapper.classList.add('hidden');
+                budgetWrapper.classList.add('hidden');
+                budgetInput.removeAttribute('required');
+                budgetInput.value = "0"; // Force 0 for backend
             } else {
-                wrapper.classList.add('hidden');
-                document.getElementById(`${prefix}-env-deadline`).value = "";
+                deadlineWrapper.classList.add('hidden');
+                budgetWrapper.classList.remove('hidden');
+                budgetInput.setAttribute('required', 'true');
             }
         }
 
@@ -550,12 +589,17 @@
             envelopesData.forEach(env => {
                 let div = document.createElement('div');
                 div.className = 'setting-item';
-                let typeLabel = env.type === 'savings' ? 'Savings Goal' : 'Budget';
                 
+                let typeLabel = "Budget";
+                if(env.type === 'savings') typeLabel = "Savings Goal";
+                if(env.type === 'dynamic') typeLabel = "Dynamic (Auto)";
+
+                let budgetText = env.type === 'dynamic' ? "Calculated by Calendar" : `${env.budget} €`;
+
                 div.innerHTML = `
                     <div>
                         <strong><span class="color-swatch" style="background-color:${env.color}"></span> ${env.name}</strong><br>
-                        <span style="color:#8e8e93; font-size:0.8em;">${typeLabel}: ${env.budget} €</span>
+                        <span style="color:#8e8e93; font-size:0.8em;">${typeLabel}: ${budgetText}</span>
                     </div>
                     <div class="btn-group">
                         <button class="edit-btn" onclick="openEditModal(${env.id})">Edit</button>
@@ -576,7 +620,7 @@
             document.getElementById('edit-env-color').value = env.color;
             document.getElementById('edit-env-type').value = env.type;
             
-            toggleDeadlineField('edit');
+            toggleFields('edit');
             if(env.deadline) {
                 document.getElementById('edit-env-deadline').value = env.deadline;
             } else {
@@ -611,7 +655,7 @@
             }
             
             env.name = newName !== "" ? newName : env.name;
-            env.budget = newBudget;
+            env.budget = newType === 'dynamic' ? 0 : newBudget;
             env.color = newColor;
             env.type = newType;
             env.deadline = newType === 'savings' && newDeadline ? newDeadline : null;
@@ -625,8 +669,8 @@
         document.getElementById('add-env-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const name = document.getElementById('new-env-name').value;
-            const budget = parseAmount(document.getElementById('new-env-budget').value);
             const type = document.getElementById('new-env-type').value;
+            const budget = type === 'dynamic' ? 0 : parseAmount(document.getElementById('new-env-budget').value);
             const color = document.getElementById('new-env-color').value;
             const deadline = type === 'savings' ? document.getElementById('new-env-deadline').value : null;
             
@@ -634,7 +678,7 @@
             localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
             this.reset();
             document.getElementById('new-env-color').value = "#0a84ff"; 
-            toggleDeadlineField('new'); 
+            toggleFields('new'); 
             init();
             alert("Category Added!");
         });
@@ -807,14 +851,21 @@
             csv += "Category,Type,Budget/Goal,Spent/Saved,Remaining,Status\n";
             envelopesData.forEach(env => {
                 let spent = getSpentForCategory(env.name);
+                
+                let effectiveBudget = env.budget;
+                if (env.type === 'dynamic') effectiveBudget = spent + getScheduledForCategoryCurrentMonth(env.name);
+
                 if(env.type === 'savings') {
-                    let remaining = env.budget - spent;
-                    let status = spent >= env.budget ? "GOAL REACHED" : "Saving in progress";
-                    csv += `${env.name},Savings,${env.budget},${spent},${remaining},${status}\n`;
+                    let remaining = effectiveBudget - spent;
+                    let status = spent >= effectiveBudget ? "GOAL REACHED" : "Saving in progress";
+                    csv += `${env.name},Savings,${effectiveBudget},${spent},${remaining},${status}\n`;
+                } else if (env.type === 'dynamic') {
+                    let remaining = effectiveBudget - spent;
+                    csv += `${env.name},Dynamic,${effectiveBudget},${spent},${remaining},Auto-Calculated\n`;
                 } else {
-                    let remaining = env.budget - spent;
+                    let remaining = effectiveBudget - spent;
                     let status = remaining >= 0 ? "Economized/On Track" : "OVERSPENT";
-                    csv += `${env.name},Budget,${env.budget},${spent},${remaining},${status}\n`;
+                    csv += `${env.name},Budget,${effectiveBudget},${spent},${remaining},${status}\n`;
                 }
             });
 
