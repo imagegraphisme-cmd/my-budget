@@ -54,7 +54,8 @@
         /* Settings & Lists */
         .setting-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
         .setting-item:last-child { border-bottom: none; }
-        .btn-group { display: flex; gap: 5px; }
+        .btn-group { display: flex; gap: 5px; align-items: center;}
+        .setting-color { width: 35px; height: 35px; padding: 0; margin: 0; border: none; background: transparent; cursor: pointer; border-radius: 6px;}
         .edit-btn { background: #48484a; padding: 8px 12px; border-radius: 8px; font-size: 14px; width: auto; margin: 0; }
         .delete-btn { background: var(--danger); padding: 8px 12px; width: auto; margin: 0; border-radius: 8px; font-size: 14px; }
         .list-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #38383a; padding: 12px 0; }
@@ -105,7 +106,6 @@
     </div>
 
     <div id="view-upcoming" class="container hidden">
-        
         <div class="card">
             <div id="cal-month-title" class="cal-header">Month</div>
             <div class="cal-days">
@@ -200,13 +200,12 @@
     </div>
 
     <script>
-        // Data Initialization & Migration
         let envelopesData = JSON.parse(localStorage.getItem('my_budget_env')) || [
             { id: 1, name: "Rent", budget: 100, type: "budget", color: "#0a84ff" },
             { id: 2, name: "Groceries", budget: 550, type: "budget", color: "#32d74b" }
         ];
         
-        // Migration script for old users
+        // Safety migration to ensure old categories have colors
         envelopesData = envelopesData.map(env => ({
             ...env,
             type: env.type || 'budget',
@@ -234,7 +233,6 @@
             loadActiveNotes();
         }
 
-        // --- CORE REMINDERS ---
         function loadActiveNotes() {
             document.getElementById('chk-download').checked = activeNotes.downloaded;
             document.getElementById('chk-compare').checked = activeNotes.compared;
@@ -303,7 +301,6 @@
             }
         }
 
-        // --- CATEGORIES & UI ---
         function populateCategoryDropdowns() {
             const catSelect = document.getElementById('category');
             const upCatSelect = document.getElementById('up-category');
@@ -323,7 +320,6 @@
             
             return transactions.reduce((total, tx) => {
                 let txDate = new Date(tx.date);
-                // If it's a budget, look at this month only. If it's savings, look at all time!
                 if (tx.category === categoryName) {
                     if (env && env.type === 'savings') return total + tx.amount;
                     if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) return total + tx.amount;
@@ -371,7 +367,6 @@
                 }
             });
             
-            // Hide headers if empty
             budgetGrid.previousElementSibling.style.display = budgetGrid.innerHTML === '' ? 'none' : 'block';
             savingsGrid.previousElementSibling.style.display = savingsGrid.innerHTML === '' ? 'none' : 'block';
         }
@@ -403,7 +398,7 @@
             display.classList.remove('hidden');
         }
 
-        // --- EDITING & SETTINGS ---
+        // --- NEW EDITING CONTROLS ---
         function renderSettings() {
             const list = document.getElementById('settings-env-list');
             list.innerHTML = '';
@@ -411,18 +406,31 @@
                 let div = document.createElement('div');
                 div.className = 'setting-item';
                 let typeLabel = env.type === 'savings' ? 'Savings Goal' : 'Budget';
+                
+                // Note the new color input directly in the list!
                 div.innerHTML = `
                     <div>
                         <strong><span class="color-swatch" style="background-color:${env.color}"></span> ${env.name}</strong><br>
                         <span style="color:#8e8e93; font-size:0.8em;">${typeLabel}: ${env.budget} €</span>
                     </div>
                     <div class="btn-group">
+                        <input type="color" class="setting-color" value="${env.color}" onchange="updateColor(${env.id}, this.value)" title="Change Color">
                         <button class="edit-btn" onclick="editEnv(${env.id})">Edit</button>
                         <button class="delete-btn" onclick="deleteEnv(${env.id})">X</button>
                     </div>
                 `;
                 list.appendChild(div);
             });
+        }
+
+        // New function to update color instantly
+        window.updateColor = function(id, newColor) {
+            let env = envelopesData.find(e => e.id === id);
+            if(env) {
+                env.color = newColor;
+                localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
+                init();
+            }
         }
 
         window.editEnv = function(id) {
@@ -436,7 +444,6 @@
             if(newBudget === null) return;
             newBudget = parseAmount(newBudget);
             
-            // Safely update all history to the new name!
             if(newName.trim() !== "" && newName !== env.name) {
                 transactions.forEach(tx => { if(tx.category === env.name) tx.category = newName.trim(); });
                 scheduled.forEach(s => { if(s.category === env.name) s.category = newName.trim(); });
@@ -460,7 +467,7 @@
             envelopesData.push({ id: Date.now(), name, budget, type, color });
             localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
             this.reset();
-            document.getElementById('new-env-color').value = "#0a84ff"; // reset default color
+            document.getElementById('new-env-color').value = "#0a84ff"; 
             init();
             alert("Category Added!");
         });
@@ -473,7 +480,6 @@
             }
         }
 
-        // --- FORMS & LISTS ---
         document.getElementById('expense-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const amount = parseAmount(document.getElementById('amount').value);
@@ -551,7 +557,6 @@
             for(let i = 1; i <= daysInMonth; i++) {
                 let isToday = i === today.getDate() && month === new Date().getMonth() ? 'today' : '';
                 
-                // Find all events for this day to generate dots
                 let eventsToday = scheduled.filter(item => {
                     let d = new Date(item.date);
                     return d.getDate() === i && d.getMonth() === month && d.getFullYear() === year;
@@ -560,7 +565,6 @@
                 let dotsHtml = '';
                 if(eventsToday.length > 0) {
                     dotsHtml = '<div class="dots-container">';
-                    // Limit to 3 dots so it doesn't overflow the UI
                     eventsToday.slice(0, 3).forEach(ev => {
                         const env = envelopesData.find(e => e.name === ev.category);
                         const dotColor = env ? env.color : 'var(--purple)';
@@ -646,6 +650,12 @@
                     csv += `${env.name},Budget,${env.budget},${spent},${remaining},${status}\n`;
                 }
             });
+
+            csv += "\n\n--- MONTHLY REVIEW NOTES ---\n";
+            csv += `Downloaded Last Report?,${activeNotes.downloaded ? "Yes" : "No"}\n`;
+            csv += `Compared to Bank App?,${activeNotes.compared ? "Yes" : "No"}\n`;
+            let safeActiveNote = activeNotes.text ? `"${activeNotes.text.replace(/"/g, '""')}"` : "";
+            csv += `My Notes,${safeActiveNote}\n`;
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
