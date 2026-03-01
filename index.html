@@ -19,6 +19,14 @@
         .alert-banner { background: var(--danger); color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 10px rgba(0,0,0,0.5); display: flex; justify-content: space-between; align-items: center;}
         .alert-btn { background: white; color: var(--danger); border: none; padding: 5px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; width: auto; margin:0;}
 
+        /* Summary Dashboard */
+        .summary-card { background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%); border: 1px solid #38383a; display: flex; justify-content: space-between; align-items: center; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);}
+        .summary-col { display: flex; flex-direction: column; }
+        .summary-col.right { text-align: right; }
+        .summary-label { font-size: 0.8em; color: #8e8e93; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .summary-value { font-size: 1.4em; font-weight: bold; color: white;}
+        .summary-divider { width: 1px; background: #38383a; height: 40px; margin: 0 15px;}
+
         /* Envelopes Grid */
         .envelope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .envelope { background: #2c2c2e; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-top: 4px solid var(--accent);}
@@ -83,6 +91,19 @@
     <div id="notification-area"></div>
 
     <div id="view-envelopes" class="container">
+        
+        <div class="summary-card">
+            <div class="summary-col">
+                <div class="summary-label">Monthly Plan</div>
+                <div id="summary-expected" class="summary-value">0.00 €</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-col right">
+                <div class="summary-label">Current + Scheduled</div>
+                <div id="summary-reality" class="summary-value" style="color: var(--accent);">0.00 €</div>
+            </div>
+        </div>
+
         <h3>Spending Budgets</h3>
         <div id="budget-grid" class="envelope-grid"></div>
 
@@ -248,7 +269,6 @@
             { id: 2, name: "Groceries", budget: 550, type: "budget", color: "#32d74b" }
         ];
         
-        // Migration to ensure old categories have colors and default deadline format
         envelopesData = envelopesData.map(env => ({
             ...env,
             type: env.type || 'budget',
@@ -372,25 +392,63 @@
             }, 0);
         }
 
-        // --- NEW MATH LOGIC FOR SAVINGS PLANNER ---
         function calculateMonthlyNeeded(goal, saved, deadlineDateStr) {
-            if (!deadlineDateStr) return null;
-            
+            if (!deadlineDateStr) return 0;
             let now = new Date();
             let target = new Date(deadlineDateStr);
             
-            // Calculate total months difference
             let monthsLeft = (target.getFullYear() - now.getFullYear()) * 12;
             monthsLeft -= now.getMonth();
             monthsLeft += target.getMonth();
             
-            // If the deadline is this month or in the past, treat it as 1 month left (pay it now)
             if (monthsLeft <= 0) monthsLeft = 1;
             
             let amountRemaining = goal - saved;
-            if (amountRemaining <= 0) return 0; // Goal reached!
+            if (amountRemaining <= 0) return 0;
             
             return amountRemaining / monthsLeft;
+        }
+
+        // --- NEW DASHBOARD SUMMARY LOGIC ---
+        function updateMonthlySummary() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            let expectedTotal = 0;
+            let realityTotal = 0;
+
+            // 1. Calculate Expected (Budgets + Monthly Savings Goals)
+            envelopesData.forEach(env => {
+                if (env.type === 'budget') {
+                    expectedTotal += env.budget;
+                } else if (env.type === 'savings' && env.deadline) {
+                    let saved = getSpentForCategory(env.name);
+                    if (saved < env.budget) {
+                        expectedTotal += calculateMonthlyNeeded(env.budget, saved, env.deadline);
+                    }
+                }
+            });
+
+            // 2. Calculate Reality (What you've spent THIS MONTH + What's scheduled THIS MONTH)
+            // A. Add logged expenses from this month
+            transactions.forEach(tx => {
+                let txDate = new Date(tx.date);
+                if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
+                    realityTotal += tx.amount;
+                }
+            });
+
+            // B. Add upcoming scheduled items for this month (that haven't been paid yet)
+            scheduled.forEach(item => {
+                let itemDate = new Date(item.date);
+                // If it's in the current month AND it's in the future (past/today are handled by reminders)
+                if (itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear) {
+                    realityTotal += item.amount;
+                }
+            });
+
+            document.getElementById('summary-expected').textContent = expectedTotal.toFixed(2) + ' €';
+            document.getElementById('summary-reality').textContent = realityTotal.toFixed(2) + ' €';
         }
 
         function renderEnvelopes() {
@@ -415,8 +473,6 @@
                     let percentage = env.budget > 0 ? Math.min(100, (spent / env.budget) * 100).toFixed(0) : 0;
                     
                     let extraInfo = `Goal: ${env.budget} € (${percentage}%)`;
-                    
-                    // If there is a deadline, add the smart dynamic calculation!
                     if(env.deadline && spent < env.budget) {
                         let monthlyNeeded = calculateMonthlyNeeded(env.budget, spent, env.deadline);
                         extraInfo += `<br><span class="smart-suggestion">Need: ${monthlyNeeded.toFixed(2)} €/mo</span>`;
@@ -445,6 +501,9 @@
             
             budgetGrid.previousElementSibling.style.display = budgetGrid.innerHTML === '' ? 'none' : 'block';
             savingsGrid.previousElementSibling.style.display = savingsGrid.innerHTML === '' ? 'none' : 'block';
+
+            // Call the new summary function!
+            updateMonthlySummary();
         }
 
         function updateDynamicBudget() {
@@ -474,7 +533,6 @@
             display.classList.remove('hidden');
         }
 
-        // --- NEW EDITING CONTROLS FOR DEADLINES ---
         window.toggleDeadlineField = function(prefix) {
             const typeSelect = document.getElementById(`${prefix}-env-type`).value;
             const wrapper = document.getElementById(`${prefix}-deadline-wrapper`);
@@ -482,7 +540,7 @@
                 wrapper.classList.remove('hidden');
             } else {
                 wrapper.classList.add('hidden');
-                document.getElementById(`${prefix}-env-deadline`).value = ""; // Clear if switched back to budget
+                document.getElementById(`${prefix}-env-deadline`).value = "";
             }
         }
 
@@ -576,7 +634,7 @@
             localStorage.setItem('my_budget_env', JSON.stringify(envelopesData));
             this.reset();
             document.getElementById('new-env-color').value = "#0a84ff"; 
-            toggleDeadlineField('new'); // Hide the date picker again
+            toggleDeadlineField('new'); 
             init();
             alert("Category Added!");
         });
@@ -589,7 +647,6 @@
             }
         }
 
-        // --- FORMS & LISTS ---
         document.getElementById('expense-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const amount = parseAmount(document.getElementById('amount').value);
