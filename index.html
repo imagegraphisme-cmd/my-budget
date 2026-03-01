@@ -75,6 +75,10 @@
         .amount-deposit { color: var(--success); }
         .badge { background: #38383a; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 5px; color: var(--purple);}
         
+        /* Backup Buttons */
+        .backup-btn-export { background: #32d74b; margin-bottom: 10px;}
+        .backup-btn-import { background: #48484a; }
+
         /* Custom Edit Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 300; display: flex; justify-content: center; align-items: center; padding: 20px;}
         .modal-content { width: 100%; max-width: 400px; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto;}
@@ -223,6 +227,14 @@
             <h2>Manage Envelopes</h2>
             <div id="settings-env-list"></div>
         </div>
+
+        <div class="card">
+            <h2>Data & Backups</h2>
+            <p style="font-size: 0.85em; color: #8e8e93; margin-bottom: 15px; line-height: 1.4;">Your data lives safely on this phone. Export a backup file to save your setup or transfer it to a new phone.</p>
+            <button class="backup-btn-export" onclick="exportBackup()">Export Backup (Save File)</button>
+            <button class="backup-btn-import" onclick="document.getElementById('import-file').click()">Import Backup (Restore)</button>
+            <input type="file" id="import-file" accept=".json" class="hidden">
+        </div>
     </div>
 
     <div id="edit-modal" class="modal-overlay hidden">
@@ -271,6 +283,9 @@
     </div>
 
     <script>
+        // Set current app version for backup future-proofing
+        const APP_VERSION = "1.13";
+
         let envelopesData = JSON.parse(localStorage.getItem('my_budget_env')) || [
             { id: 1, name: "Rent", budget: 100, type: "budget", color: "#0a84ff" }
         ];
@@ -398,7 +413,6 @@
             }, 0);
         }
 
-        // NEW HELPER: Get total SCHEDULED for a category this month
         function getScheduledForCategoryCurrentMonth(categoryName) {
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
@@ -432,7 +446,6 @@
             let expectedTotal = 0;
             let realityTotal = 0;
 
-            // 1. Calculate Expected (Budgets + Monthly Savings Goals + Dynamic)
             envelopesData.forEach(env => {
                 if (env.type === 'budget') {
                     expectedTotal += env.budget;
@@ -442,12 +455,10 @@
                         expectedTotal += calculateMonthlyNeeded(env.budget, saved, env.deadline);
                     }
                 } else if (env.type === 'dynamic') {
-                    // Expected dynamic budget = what you already spent + what is still scheduled
                     expectedTotal += getSpentForCategory(env.name) + getScheduledForCategoryCurrentMonth(env.name);
                 }
             });
 
-            // 2. Calculate Reality (What you've spent THIS MONTH + What's scheduled THIS MONTH)
             transactions.forEach(tx => {
                 let txDate = new Date(tx.date);
                 if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
@@ -475,7 +486,6 @@
             envelopesData.forEach(env => {
                 let spent = getSpentForCategory(env.name);
                 
-                // DYNAMIC CALCULATION
                 let effectiveBudget = env.budget;
                 if (env.type === 'dynamic') {
                     effectiveBudget = spent + getScheduledForCategoryCurrentMonth(env.name);
@@ -514,7 +524,7 @@
                     let amountClass = 'env-amount';
                     
                     if (remaining <= 0 && env.type !== 'dynamic') amountClass += ' empty';
-                    else if (remaining <= 0 && env.type === 'dynamic') amountClass = 'env-amount'; // Dynamic never looks "empty" in a bad way
+                    else if (remaining <= 0 && env.type === 'dynamic') amountClass = 'env-amount'; 
                     else if (remaining < (effectiveBudget * 0.2)) amountClass += ' low';
 
                     let subtitle = env.type === 'dynamic' ? `<br><span style="font-size:0.8em;color:#8e8e93;">(Auto: ${effectiveBudget.toFixed(2)}€)</span>` : '';
@@ -575,7 +585,7 @@
                 deadlineWrapper.classList.add('hidden');
                 budgetWrapper.classList.add('hidden');
                 budgetInput.removeAttribute('required');
-                budgetInput.value = "0"; // Force 0 for backend
+                budgetInput.value = "0";
             } else {
                 deadlineWrapper.classList.add('hidden');
                 budgetWrapper.classList.remove('hidden');
@@ -691,6 +701,71 @@
             }
         }
 
+        // --- NEW EXPORT / IMPORT LOGIC ---
+        window.exportBackup = function() {
+            const backupData = {
+                appVersion: APP_VERSION,
+                envelopes: envelopesData,
+                transactions: transactions,
+                scheduled: scheduled,
+                notes: activeNotes
+            };
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `MyBudget_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchorNode); 
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        document.getElementById('import-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    migrateAndRestoreData(data);
+                } catch(err) {
+                    alert("Error: Invalid backup file format.");
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function migrateAndRestoreData(data) {
+            if(!confirm("Are you sure? This will overwrite your current app data with the backup file.")) return;
+
+            // 1. Extract the raw data arrays
+            let envs = data.envelopes || [];
+            let txs = data.transactions || [];
+            let scheds = data.scheduled || [];
+            let notes = data.notes || { downloaded: false, compared: false, text: "" };
+
+            // 2. The Future-Proofing Migration Step
+            // Right now, we just ensure all envelopes have the modern V1.13 structure (type, color, deadline).
+            // In the future, if data.appVersion is "1.13" and we are on "1.20", we would run upgrade logic here.
+            envs = envs.map(env => ({
+                ...env,
+                type: env.type || 'budget',
+                color: env.color || '#0a84ff',
+                deadline: env.deadline || null
+            }));
+
+            // 3. Save directly to the phone's storage
+            localStorage.setItem('my_budget_env', JSON.stringify(envs));
+            localStorage.setItem('my_budget_tx', JSON.stringify(txs));
+            localStorage.setItem('my_budget_sched', JSON.stringify(scheds));
+            localStorage.setItem('my_budget_notes', JSON.stringify(notes));
+
+            alert("Backup restored successfully!");
+            location.reload(); // Refresh the app to load the new data
+        }
+
+        // --- FORMS & LISTS ---
         document.getElementById('expense-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const amount = parseAmount(document.getElementById('amount').value);
